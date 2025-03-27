@@ -1,12 +1,11 @@
 from sqlalchemy import Select
-from sqlmodel import Session, SQLModel
-from typing import Union, Annotated
-from pydantic import BaseModel
-from fastapi import FastAPI, Depends, Query
+from sqlmodel import Session, SQLModel, select
+from typing import Union, Annotated, Sequence, List
+from fastapi import FastAPI, Depends, Query, APIRouter
+
 from src.db.db import get_session, engine
 from contextlib import asynccontextmanager
-
-from src.models.message import Message
+from src.models.message import  MessageBase, MessageCreate, MessagePublic, Message
 
 
 @asynccontextmanager
@@ -19,19 +18,22 @@ async def lifespan(app: FastAPI):
 
 SessionDep = Annotated[Session, Depends(get_session)]
 app = FastAPI(lifespan=lifespan)
+router = APIRouter()
 @app.get("/")
 async def read_root():
     return {"Hello": "World"}
 
-@app.get("/messages/")
-async def get_messages(session: SessionDep, offset: int = 0, limit: Annotated[int, Query(le=100)] = 100) -> list[Message]:
-    messages = session.exec(Select(Message).offset(offset).limit(limit)).all()
-    return messages
+@app.get("/messages/",status_code=200 ,response_model=list[MessagePublic])
+async def get_messages(session: SessionDep, offset: int = 0, limit: Annotated[int, Query(le=100)] = 100) -> List[MessagePublic]:
+    messages = session.exec(select(Message).offset(offset).limit(limit)).all()
+    return [MessagePublic.model_validate(m) for m in messages]
 
-@app.post("/messages/")
-async def create_message(message: Message, session: SessionDep) -> Message:
-    print("im here")
-    session.add(message)
+@app.post("/messages/", status_code=201, response_model=MessagePublic)
+async def create_message(message: MessageCreate, session: SessionDep) -> Message:
+    if not message.score:
+        message.score = 50.0
+    db_message = Message.model_validate(message)
+    session.add(db_message)
     session.commit()
-    session.refresh(message)
-    return message
+    session.refresh(db_message)
+    return db_message

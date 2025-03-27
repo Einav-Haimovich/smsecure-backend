@@ -1,6 +1,8 @@
+from typing import Optional
+
 from sqlmodel import Session, SQLModel, create_engine, Field
 from src.conf.app_settings import settings
-from src.models.message import Message
+from src.models.message import  MessageBase
 
 db_user = f"{settings.db_settings.user}"
 db_password = f"{settings.db_settings.password}"
