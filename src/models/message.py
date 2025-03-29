@@ -1,3 +1,4 @@
+from pydantic import BaseModel
 from sqlmodel import SQLModel, Field
 from typing import Optional
 
@@ -19,3 +20,6 @@ class Message(MessageBase, table=True):
 class MessagePublic(MessageBase):
     id: int
     score: float
+
+class MessageCreateBulk(BaseModel):
+    messages: list[MessageCreate]

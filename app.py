@@ -5,7 +5,7 @@ from fastapi import FastAPI, Depends, Query, APIRouter
 
 from src.db.db import get_session, engine
 from contextlib import asynccontextmanager
-from src.models.message import  MessageBase, MessageCreate, MessagePublic, Message
+from src.models.message import MessageBase, MessageCreate, MessagePublic, Message, MessageCreateBulk
 
 
 @asynccontextmanager
@@ -37,3 +37,22 @@ async def create_message(message: MessageCreate, session: SessionDep) -> Message
     session.commit()
     session.refresh(db_message)
     return db_message
+
+@app.post("/messages/bulk/", status_code=201, response_model=List[MessagePublic])
+async def create_messages_bulk(
+    request: MessageCreateBulk,
+    session: SessionDep
+) -> List[Message]:
+    db_messages = []
+    for message in request.messages:
+        if not message.score:
+            message.score = 50.0
+        db_message = Message.model_validate(message)
+        session.add(db_message)
+        db_messages.append(db_message)
+
+    session.commit()
+    for msg in db_messages:
+        session.refresh(msg)
+
+    return db_messages
